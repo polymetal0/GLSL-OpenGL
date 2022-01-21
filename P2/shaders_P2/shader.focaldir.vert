@@ -11,7 +11,6 @@ uniform mat4 normal;
 uniform mat4 view;
 uniform mat4 modelView;
 
-//uniform vec3 lightPos;
 out vec3 LightPos;
 
 out vec3 vNormal;

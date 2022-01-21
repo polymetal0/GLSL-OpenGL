@@ -29,6 +29,7 @@ std::vector<glm::mat4>	model;
 glm::mat4	model2 = glm::mat4(1.0f);
 
 glm::vec3 lightPos = glm::vec3(0.0, 6.0, 6.0);
+glm::vec3 lightInt = glm::vec3(1000.0, 1000.0, 1000.0);
 
 int w, h;
 
@@ -50,8 +51,9 @@ unsigned int p2;
 std::vector<int> uModelViewMat;
 std::vector<int> uModelViewProjMat;
 std::vector<int> uNormalMat;
-//std::vector<int> uViewMat;
-std::vector<float> uLightPos;
+std::vector<int> uViewMat;
+std::vector<int> uLightPos;
+std::vector<int> uLightInt;
 
 //Texturas
 unsigned int colorTexId;
@@ -153,7 +155,7 @@ int main(int argc, char** argv)
 
 	program.push_back(glCreateProgram());
 	//initShader("../shaders_P3/shader.v1.vert", "../shaders_P3/shader.v1.frag");
-	initShader("../shaders_P3/shader.focaldir.vert", "../shaders_P3/shader.focaldir.frag");
+	initShader("../shaders_P3/shader.intensidad.vert", "../shaders_P3/shader.intensidad.frag");
 
 	initObj();
 
@@ -279,7 +281,7 @@ void initShader(const char* vname, const char* fname)
 		exit(-1);
 	}
 
-	//uViewMat.push_back(glGetUniformLocation(program[program.size() - 1], "view"));
+	uViewMat.push_back(glGetUniformLocation(program[program.size() - 1], "view"));
 	uNormalMat.push_back(glGetUniformLocation(program[program.size() - 1], "normal"));
 	uModelViewMat.push_back(glGetUniformLocation(program[program.size() - 1], "modelView"));
 	uModelViewProjMat.push_back(glGetUniformLocation(program[program.size() - 1], "modelViewProj"));
@@ -290,6 +292,7 @@ void initShader(const char* vname, const char* fname)
 	uNormalTex.push_back(glGetUniformLocation(program[program.size() - 1], "normalTex"));
 
 	uLightPos.push_back(glGetUniformLocation(program[program.size() - 1], "lightpos"));
+	uLightInt.push_back(glGetUniformLocation(program[program.size() - 1], "lightintensity"));
 
 	inPos.push_back(glGetAttribLocation(program[program.size() - 1], "inPos"));
 	inColor.push_back(glGetAttribLocation(program[program.size() - 1], "inColor"));
@@ -314,6 +317,14 @@ void initShader(const char* vname, const char* fname)
 	if (uNormalTex[program.size() - 1] != -1)
 	{
 		glUniform1i(uNormalTex[program.size() - 1], 3);
+	}
+
+	if (glewIsSupported("GL_EXT_texture_filter_anisotropic"))
+	{
+		GLfloat fLargest;
+		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &fLargest);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, fLargest);
+
 	}
 
 	//}
@@ -464,7 +475,6 @@ void renderFunc()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glViewport(0, 0, w, h);
 
-	//lightPos = glm::vec3(glm::vec4(lightPos, 1.0) * view);
 
 	int objs = 0;
 	for (size_t i = 0; i < vao.size(); i++)
@@ -486,6 +496,11 @@ void renderFunc()
 			glUniformMatrix4fv(uModelViewProjMat[i], 1, GL_FALSE,
 				&(modelViewProj[0][0]));
 		}
+		
+		if (uViewMat[i] != -1) {
+			glUniformMatrix4fv(uViewMat[i], 1, GL_FALSE,
+				&(view[0][0]));
+		}
 
 		if (uNormalMat[i] != -1) {
 			glUniformMatrix4fv(uNormalMat[i], 1, GL_FALSE,
@@ -493,7 +508,14 @@ void renderFunc()
 		}
 		if (uLightPos[i] != -1)
 		{
-			glUniform3f(uLightPos[i], lightPos[0], lightPos[1], lightPos[2]);
+			glm::vec3 lp = glm::vec3(view * glm::vec4(lightPos, 1.0));
+			glUniform3f(uLightPos[i], lp[0], lp[1], lp[2]);
+			//glUniform3fv(uLightPos[i], 1, &lightPos[0]);
+		}
+		if (uLightInt[i] != -1)
+		{
+			glm::vec3 li = lightInt;// glm::vec3(modelViewProj * glm::vec4(lightInt, 1.0));
+			glUniform3f(uLightInt[i], li[0], li[1], li[2]);
 			//glUniform3fv(uLightPos[i], 1, &lightPos[0]);
 		}
 
@@ -527,54 +549,61 @@ void renderFunc()
 		objs += 1;
 	}
 
-	if (program.size() > objs)
+	for (int i=objs; i<program.size(); i++)
 	{
-		glUseProgram(program[objs]);
+		glUseProgram(program[i]);
 
-		glm::mat4 modelView = view * model[objs];
+		glm::mat4 modelView = view * model[i];
 		glm::mat4 modelViewProj = proj * modelView;
 		glm::mat4 normal = glm::transpose(glm::inverse(modelView));
 
-		if (uModelViewMat[objs] != -1) {
-			glUniformMatrix4fv(uModelViewMat[objs], 1, GL_FALSE,
+		if (uModelViewMat[i] != -1) {
+			glUniformMatrix4fv(uModelViewMat[i], 1, GL_FALSE,
 				&(modelView[0][0]));
 		}
 
-		if (uModelViewProjMat[objs] != -1) {
-			glUniformMatrix4fv(uModelViewProjMat[objs], 1, GL_FALSE,
+		if (uModelViewProjMat[i] != -1) {
+			glUniformMatrix4fv(uModelViewProjMat[i], 1, GL_FALSE,
 				&(modelViewProj[0][0]));
 		}
 
-		if (uNormalMat[objs] != -1) {
-			glUniformMatrix4fv(uNormalMat[objs], 1, GL_FALSE,
+		if (uNormalMat[i] != -1) {
+			glUniformMatrix4fv(uNormalMat[i], 1, GL_FALSE,
 				&(normal[0][0]));
 		}
-		if (uLightPos[objs] != -1)
+		if (uLightPos[i] != -1)
 		{
-			glUniform3f(uLightPos[objs], lightPos[0], lightPos[1], lightPos[2]);
+			glm::vec3 lp = glm::vec3(view * glm::vec4(lightPos, 1.0));
+			glUniform3f(uLightPos[i], lp[0], lp[1], lp[2]);
 			//glUniform3fv(uLightPos[objs], 1, 
 				//&lightPos[0]);
+		}
+		if (uLightInt[i] != -1)
+		{
+			glm::vec3 li = lightInt;
+			glUniform3f(uLightInt[i], li[0], li[1], li[2]);
+			//glUniform3fv(uLightPos[i], 1, &lightPos[0]);
 		}
 
 		for (size_t i = 0; i < modelVaos.size(); i++)
 		{
 			//Texturas
-			if (uColorTex[objs] != -1)
+			if (uColorTex[i] != -1)
 			{
 				glActiveTexture(GL_TEXTURE0);
 				glBindTexture(GL_TEXTURE_2D, modelColorTexId);
 			}
-			if (uEmiTex[objs] != -1)
+			if (uEmiTex[i] != -1)
 			{
 				glActiveTexture(GL_TEXTURE0 + 1);
 				glBindTexture(GL_TEXTURE_2D, modelEmiTexId);
 			}
-			if (uSpecTex[objs] != -1)
+			if (uSpecTex[i] != -1)
 			{
 				glActiveTexture(GL_TEXTURE0 + 2);
 				glBindTexture(GL_TEXTURE_2D, modelSpecTexId);
 			}
-			if (uNormalTex[objs] != -1)
+			if (uNormalTex[i] != -1)
 			{
 				glActiveTexture(GL_TEXTURE0 + 3);
 				glBindTexture(GL_TEXTURE_2D, modelNormalTexId);
@@ -708,11 +737,29 @@ void keyboardFunc(unsigned char key, int x, int y)
 	case 'e':
 		rotation = -15.0f;
 		break;
-	case '+':
+	case '0':
 		lightPos += glm::vec3(0.0, 1.0, 0.0);
 		break;
-	case '-':
+	case '.':
 		lightPos -= glm::vec3(0.0, 1.0, 0.0);
+		break;
+	case '4':
+		lightPos -= glm::vec3(1.0, 0.0, 0.0);
+		break;
+	case '6':
+		lightPos += glm::vec3(1.0, 0.0, 0.0);
+		break;
+	case '8':
+		lightPos -= glm::vec3(0.0, 0.0, 1.0);
+		break;
+	case '2':
+		lightPos += glm::vec3(0.0, 0.0, 1.0);
+		break;
+	case '+':
+		lightInt += glm::vec3(10.0, 10.0, 10.0);
+		break;
+	case '-':
+		lightInt -= glm::vec3(10.0, 10.0, 10.0);
 		break;
 		//model = model2;
 		//program = glCreateProgram();
@@ -726,7 +773,18 @@ void keyboardFunc(unsigned char key, int x, int y)
 	lookAt = rot * glm::vec4(lookAt, 1.0f);
 
 	view = glm::lookAt(cop, cop + lookAt, up);
-	glUniform3f(uLightPos[program.size()-1], lightPos[0], lightPos[1], lightPos[2]);
+	for (size_t i = 0; i < program.size(); i++)
+	{
+		if (uLightPos[i] != -1)
+		{
+			glUniform3fv(uLightPos[i], 3, &lightPos[0]);// , lightPos[1], lightPos[2]);
+		}
+		if (uLightInt[i] != -1)
+		{
+			glUniform3fv(uLightInt[i], 3, &lightInt[0]);// , lightPos[1], lightPos[2]);
+		}
+
+	}
 	glutPostRedisplay();
 }
 

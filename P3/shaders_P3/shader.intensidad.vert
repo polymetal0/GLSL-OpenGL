@@ -13,9 +13,10 @@ uniform mat4 view;
 uniform mat4 modelView;
 
 uniform vec3 lightpos;
+uniform vec3 lightintensity;
 
 out vec3 LightPos;
-
+out vec3 LightIntensity;
 
 out vec3 vNormal;
 out vec3 vPos;
@@ -36,7 +37,8 @@ void main()
 	vColor = inColor;
 	vTexCoord = inTexCoord;
 	
-	LightPos = vec3(view * vec4(lightpos,1.0)); //vec3(0.0,6.0,6.0)
+	LightPos = lightpos;//vec3(view * vec4(lightpos,1.0));
+	LightIntensity = lightintensity;
 
 	gl_Position =  modelViewProj * vec4 (inPos,1.0);
 }

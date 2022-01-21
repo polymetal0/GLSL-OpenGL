@@ -7,11 +7,11 @@ uniform sampler2D emiTex;
 uniform sampler2D normalTex;
 in vec3 color;
 in vec3 LightPos;
-
+in vec3 LightIntensity;
 //Propiedades de las funtes de luz
 //uniforms
 vec3 Ia = vec3(0.0);
-vec3 Il = vec3(100.0);
+vec3 Il = LightIntensity;//vec3(1000.0);
 vec3 Pl = LightPos;//vec3(0,1.0,0);//Coord cámara
 
 //Objeto
