@@ -1,10 +1,3 @@
-#include <glm/glm.hpp>
-//#define MASK_SIZE 9u
-
-const glm::vec2 texIdx = (
-glm::vec2(-1.0,1.0), glm::vec2(0.0,1.0), glm::vec2(1.0,1.0),
-glm::vec2(-1.0,0.0), glm::vec2(0.0,0.0), glm::vec2(1.0,0.0),
-glm::vec2(-1.0,-1.0), glm::vec2(0.0,-1.0), glm::vec2(1.0,-1.0));
 
 float identity[] = {
 float(0.0), float(0.0), float(0.0),

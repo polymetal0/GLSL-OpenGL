@@ -5,8 +5,8 @@ uniform sampler2D colorTex;
 uniform sampler2D zTex;
 out vec4 outColor;
 
-in float focalDistance;				// = -25.0;
-in float maxDistanceFactor;			// = 1.0/5.0;
+in float focalDistance;				
+in float maxDistanceFactor;			
 
 in float mask[9];
 
@@ -26,9 +26,8 @@ void main()
 	//Sería más rápido utilizar una variable uniform el tamaño de la textura.
 	vec2 ts = vec2(1.0) / vec2 (textureSize (colorTex,0));
 
-	float z = (2.0 * near * far) / (far + near - (gl_FragDepth * 2.0 - 1.0) * (far - near));	
-
-	float dof = abs(texture(zTex,texCoord).x - focalDistance) * maxDistanceFactor;
+	float depthBuff = (2.0 * near * far) / (far + near - (texture(zTex,texCoord).x * 2.0 - 1.0) * (far - near));	
+	float dof = abs(depthBuff - focalDistance) * maxDistanceFactor;
 	
 	dof = clamp (dof, 0.0, 1.0);
 	dof *= dof;

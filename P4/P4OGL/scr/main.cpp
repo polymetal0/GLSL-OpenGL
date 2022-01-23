@@ -167,10 +167,10 @@ int main(int argc, char** argv)
 
 	initContext(argc, argv);
 	initOGL();
-	initShaderFw("../shaders_P4/fwRendering.v0.vert", "../shaders_P4/fwRendering.v0.frag");
-	//initObj();
-	std::string modelPath = "../modelos/SamusDread.fbx";
-	loadModel(modelPath);
+	initShaderFw("../shaders_P4/fwRendering.v1.vert", "../shaders_P4/fwRendering.v1.frag");
+	initObj();
+	//std::string modelPath = "../modelos/SamusDread.fbx";
+	//loadModel(modelPath);
 
 	initShaderPP("../shaders_P4/postProcessing.v0.vert", "../shaders_P4/postProcessing.v1.frag");
 	initPlane();
@@ -477,8 +477,8 @@ void renderFunc()
 	model[3].w = 1.0f;
 	model = glm::rotate(model, angle, glm::vec3(1.0f, 1.0f, 0.0f));
 
-	//renderCube();
-	renderModel();
+	renderCube();
+	//renderModel();
 
 	std::srand(RAND_SEED);
 	for (unsigned int i = 0; i < 10; i++)
@@ -503,8 +503,8 @@ void renderFunc()
 		model = glm::rotate(model, angle*2.0f*size, axis);
 		model = glm::scale(model, glm::vec3(1.0f / (size*0.7f)));
 
-		//renderCube();
-		renderModel();
+		renderCube();
+		//renderModel();
 	}
 	//*/
 
@@ -661,36 +661,6 @@ void keyboardFunc(unsigned char key, int x, int y)
 	case 'e':
 		rotation = -15.0f;
 		break;
-		//POSICIÓN LUZ
-	case '0':
-		lightPos += glm::vec3(0.0, 1.0, 0.0);
-		break;
-	case '.':
-		lightPos -= glm::vec3(0.0, 1.0, 0.0);
-		break;
-	case '4':
-		lightPos -= glm::vec3(1.0, 0.0, 0.0);
-		break;
-	case '6':
-		lightPos += glm::vec3(1.0, 0.0, 0.0);
-		break;
-	case '8':
-		lightPos -= glm::vec3(0.0, 0.0, 1.0);
-		break;
-	case '2':
-		lightPos += glm::vec3(0.0, 0.0, 1.0);
-		break;
-	//INTENSIDAD LUZ
-	case '+':
-		//lightInt += glm::vec3(10.0, 10.0, 10.0);
-		//motionBlur += glm::vec4(0.1);
-		//maskFactor *= 1.1f;
-		break;
-	case '-':
-		//lightInt -= glm::vec3(10.0, 10.0, 10.0);
-		//motionBlur -= glm::vec4(0.1);
-		//maskFactor /= 1.1f;
-		break;
 	//MOTION BLUR
 	case 'f':
 		motionBlur.r += 0.1f;
@@ -731,7 +701,7 @@ void keyboardFunc(unsigned char key, int x, int y)
 	case ',':
 		maxDistanceFactor -= 0.1f;
 		break;
-	
+	//CONVOLUTION
 	case 'y':
 		mask = identity;
 		break;
@@ -756,18 +726,6 @@ void keyboardFunc(unsigned char key, int x, int y)
 	lookAt = rot * glm::vec4(lookAt, 1.0f);
 
 	view = glm::lookAt(cop, cop + lookAt, up);
-	/*for (size_t i = 0; i < program.size(); i++)
-	{
-		if (uLightPos[i] != -1)
-		{
-			glUniform3f(uLightPos[i], lightPos[0], lightPos[1], lightPos[2]);
-		}
-		if (uLightInt[i] != -1)
-		{
-			glUniform3f(uLightInt[i], lightInt[0], lightInt[1], lightInt[2]);
-		}
-
-	}*/
 
 	if (uFocalDist != -1)
 	{
@@ -779,8 +737,8 @@ void keyboardFunc(unsigned char key, int x, int y)
 		glUniform1f(uMaxDistFactor, maxDistanceFactor);
 	}
 
-	//std::cout << focalDistance << std::endl;
-	//std::cout << maxDistanceFactor << std::endl;
+	std::cout << focalDistance << std::endl;
+	std::cout << maxDistanceFactor << std::endl;
 
 	//std::cout << motionBlur[0] << std::endl;
 	//std::cout << motionBlur[1] << std::endl;
@@ -839,10 +797,7 @@ void mouseMotionFunc(int x, int y)
 	yaw += xoffset;
 	pitch += yoffset;
 
-	if (pitch > 89.0f)
-		pitch = 89.0f;
-	if (pitch < -89.0f)
-		pitch = -89.0f;
+	pitch = glm::clamp(pitch, -89.9f, 89.9f);
 
 	glm::mat4 rotX = glm::rotate(glm::mat4(1.0f), pitch, glm::cross(lookAt, up));
 	glm::mat4 rotY = glm::rotate(glm::mat4(1.0f), yaw, up);
@@ -873,10 +828,7 @@ void mouseMotionFunc(int x, int y)
 	yaw += xoffset;
 	pitch += yoffset;
 
-	if (pitch > 89.0f)
-		pitch = 89.0f;
-	if (pitch < -89.0f)
-		pitch = -89.0f;
+	pitch = glm::clamp(pitch, -89.9f, 89.9f);
 
 	glm::vec3 front;
 	front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
@@ -1005,8 +957,6 @@ void loadModel(std::string path)
 	Assimp::Importer importer;
 	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_PreTransformVertices | aiProcess_OptimizeMeshes | aiProcess_CalcTangentSpace);
 	float scale = 0.008;
-
-	//glUseProgram(program[program.size() - 1]);
 
 	for (size_t m = 0; m < scene->mNumMeshes; m++)
 	{

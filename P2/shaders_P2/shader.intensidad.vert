@@ -10,12 +10,7 @@ in vec3 inTangent;
 in vec3 inBitangent;
 uniform mat4 modelViewProj;
 uniform mat4 normal;
-uniform mat4 view;
 uniform mat4 modelView;
-uniform vec3 lightpos;
-
-out vec3 LightPos;
-
 
 out vec3 vNormal;
 out vec3 vPos;
@@ -38,7 +33,6 @@ void main()
 	vColor = inColor;
 	vTexCoord = inTexCoord;
 	
-	LightPos = vec3(view * vec4(vec3(0.0,6.0,6.0),1.0));
 
 	gl_Position =  modelViewProj * vec4 (inPos,1.0);
 }

@@ -6,7 +6,6 @@ uniform sampler2D specularTex;
 uniform sampler2D emiTex;
 uniform sampler2D normalTex;
 in vec3 color;
-in vec3 LightPos;
 
 //Propiedades de las funtes de luz
 //uniforms
@@ -16,7 +15,7 @@ vec3 Pl = vec3(50.0,50.0,50.0);
 
 vec3 Ia2 = vec3(0.0);
 vec3 Il2 = vec3(10.0);
-vec3 Pl2 = vec3(0.0,0.0,-2.0);//vec3(model * vec4(0.0,-4.0,0.0,1.0));//5.0,-30.0);//Coord cámara
+vec3 Pl2 = vec3(0.0,0.0,-2.0);
 float angle = 3.14159/6;
 float cutoff = 3.14159/4;
 
@@ -39,7 +38,7 @@ vec3 N2;
 vec3 Pp2;
 
 //Fog
-vec3 fogColor = vec3(1.0);//vec3(0.5);
+vec3 fogColor = vec3(1.0);
 float fog = 0.0;
 float df = 0.005;
 int m = 5;
@@ -57,8 +56,6 @@ vec3 shade()
 
 	//Especular
 	vec3 V = normalize(-Pp);
-	//vec3 R = normalize(reflect(-L,N));
-	//c+= Il * Ks * pow (max(dot(V, R),0), n);
 	vec3 H = normalize(V+L);
 	c += Il * Ks * pow (max(dot(H, N),0), n);
 
@@ -87,8 +84,6 @@ vec3 shade()
 
 	//Especular
 	vec3 V2 = normalize(-Pp2);
-	//vec3 R = normalize(reflect(-L,N));
-	//c+= Il * Ks * pow (max(dot(V, R),0), n);
 	vec3 H2 = normalize(V2+L2);
 	c2 += Il2 * Ks2 * pow(max(dot(H2, N2),0), n2) * fdir * (pow(1/(length(Pp2 - Pl2) + 1), 2));
 
@@ -101,9 +96,6 @@ in vec3 vNormal;
 in vec3 vPos;
 in vec3 vColor;
 in vec2 vTexCoord;
-in vec3 vTangent;
-in vec3 vBitangent;
-in mat3 TBN;
 
 void main()
 {	
@@ -124,12 +116,11 @@ void main()
 	Pp2 = vPos;
 
 	N = texture(normalTex, vTexCoord).rgb;
-	//N = ;
-	N = normalize(N * 2.0 - 1.0);//TBN * N);
+	N = normalize(N * 2.0 - 1.0);
 
 	N2 = N;
 
 	fog = exp(-pow((df * Pp.z), 2));
 	fog = clamp(fog, 0.0, 1.0);
-	outColor = fog * vec4(shade(), 1.0) + (1 - fog) * vec4(fogColor, 1.0);//0.0    
+	outColor = fog * vec4(shade(), 1.0) + (1 - fog) * vec4(fogColor, 1.0);   
 }

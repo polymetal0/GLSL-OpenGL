@@ -6,13 +6,12 @@ uniform sampler2D specularTex;
 uniform sampler2D emiTex;
 uniform sampler2D normalTex;
 in vec3 color;
-in vec3 LightPos;
 
 //Propiedades de las funtes de luz
 //uniforms
 vec3 Ia = vec3(0.2);
 vec3 Il = vec3(1000.0);
-vec3 Pl = LightPos;//vec3(0,1.0,0);//Coord cámara
+vec3 Pl = vec3(0,1.0,0);
 
 //Objeto
 vec3 Ka;
@@ -21,7 +20,7 @@ vec3 Ks;
 vec3 Ke;
 float n;
 vec3 N;
-vec3 Pp;// = glm::vec3(0.0, 1.0, 0.0);
+vec3 Pp;
 
 vec3 shade()
 {
@@ -36,12 +35,10 @@ vec3 shade()
 
 	//Especular
 	vec3 V = normalize(-Pp);
-	//vec3 R = normalize(reflect(-L,N));
-	//c+= Il * Ks * pow (max(dot(V, R),0), n);
 	vec3 H = normalize(V+L);
 	c+= Il * Ks * pow (max(dot(H, N),0), n) * (pow(1/(length(Pp - Pl)+1), 2));
 
-	c+= Ke;// * (pow(1/(length(Pp - Pl)+1), 2));
+	c+= Ke;
 
 	return c;
 }

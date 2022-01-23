@@ -114,9 +114,9 @@ void idleFunc()
 	//SEGUNDO CUBO
 
 	glm::vec3 orbit = glm::vec3(0.0f, 0.0f, 6.0f);
-	glm::mat4 model2 = glm::translate(model, orbit);							//ORBITAR 
-	model2 = glm::rotate(model2, angle, -rotAxis);								//DESHACER ROTACIÓN DEL PRIMER CUBO
-	model2 = glm::rotate(model2, 2 * angle, glm::vec3(0.0f, 1.0f, 0.0f));		//ROTAR SOBRE EJE Y
+	glm::mat4 model2 = glm::translate(model, orbit);							
+	model2 = glm::rotate(model2, angle, -rotAxis);								
+	model2 = glm::rotate(model2, 2 * angle, glm::vec3(0.0f, 1.0f, 0.0f));		
 
 	IGlib::setModelMat(objId2, model2);
 	for (size_t i = 0; i < assimpModelId.size(); i++)

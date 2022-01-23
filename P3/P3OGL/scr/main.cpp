@@ -37,8 +37,6 @@ int w, h;
 //////////////////////////////////////////////////////////////
 // Variables que nos dan acceso a Objetos OpenGL
 //////////////////////////////////////////////////////////////
-//std::vector<unsigned int> vshader;
-//std::vector<unsigned int> fshader;
 
 unsigned int vshader;
 unsigned int fshader;
@@ -87,12 +85,6 @@ unsigned int triangleIndexVBO;
 
 std::vector<unsigned int> vao;
 std::vector<unsigned int> modelVaos;
-/*VBOs que forman parte del objeto
-std::vector<unsigned int> posVBO;
-std::vector<unsigned int> colorVBO;
-std::vector<unsigned int> normalVBO;
-std::vector<unsigned int> texCoordVBO;
-std::vector<unsigned int> triangleIndexVBO;*/
 
 std::vector<unsigned int> modelNTriangleIndex;
 
@@ -137,7 +129,6 @@ int main(int argc, char** argv)
 	initOGL();
 
 	program.push_back(glCreateProgram());
-	//initShader("../shaders_P3/shader.v1.vert", "../shaders_P3/shader.v1.frag");
 	initShader("../shaders_P3/shader.intensidad.vert", "../shaders_P3/shader.intensidad.frag");
 
 	initObj();
@@ -240,24 +231,17 @@ void destroy()
 
 }
 
-//void initShader(const std::vector<char*> vname, const std::vector<char*> fname)
 void initShader(const char* vname, const char* fname)
 {
-	//for (size_t i = 0; i < 2; i++)
-	//{
-		//vshader.push_back(loadShader(vname[i], GL_VERTEX_SHADER));
-		//fshader.push_back(loadShader(fname[i], GL_FRAGMENT_SHADER));
 
 	vshader = loadShader(vname, GL_VERTEX_SHADER);
 	fshader = loadShader(fname, GL_FRAGMENT_SHADER);
-
-	//program.push_back(glCreateProgram());
 
 	glAttachShader(program[program.size() - 1], vshader);
 	glAttachShader(program[program.size() - 1], fshader);
 	glLinkProgram(program[program.size() - 1]);
 
-	std::cout << program[program.size() - 1] << std::endl;// << p2 << std::endl << p1 << std::endl << std::endl;
+	std::cout << program[program.size() - 1] << std::endl;
 
 	int linked;
 	glGetProgramiv(program[program.size() - 1], GL_LINK_STATUS, &linked);
@@ -482,13 +466,11 @@ void renderFunc()
 		{
 			glm::vec3 lp = glm::vec3(view * glm::vec4(lightPos, 1.0));
 			glUniform3f(uLightPos[i], lp[0], lp[1], lp[2]);
-			//glUniform3fv(uLightPos[i], 1, &lightPos[0]);
 		}
 		if (uLightInt[i] != -1)
 		{
 			glm::vec3 li = lightInt;
 			glUniform3f(uLightInt[i], li[0], li[1], li[2]);
-			//glUniform3fv(uLightPos[i], 1, &lightPos[0]);
 		}
 
 		//Texturas
@@ -546,14 +528,11 @@ void renderFunc()
 		{
 			glm::vec3 lp = glm::vec3(view * glm::vec4(lightPos, 1.0));
 			glUniform3f(uLightPos[i], lp[0], lp[1], lp[2]);
-			//glUniform3fv(uLightPos[objs], 1, 
-				//&lightPos[0]);
 		}
 		if (uLightInt[i] != -1)
 		{
 			glm::vec3 li = lightInt;
 			glUniform3f(uLightInt[i], li[0], li[1], li[2]);
-			//glUniform3fv(uLightPos[i], 1, &lightPos[0]);
 		}
 
 		for (size_t i = 0; i < modelVaos.size(); i++)
@@ -662,13 +641,13 @@ void idleFunc()
 	angle = (angle > 3.141592f * 2.0f) ? 0 : angle + 0.01f;
 	model[0] = glm::rotate(model[0], angle, glm::vec3(1.0f, 1.0f, 0.0f));
 
-	//MATRIZ MODELO PARA QUE EL SEGUNDO CUBO ORBITE AL PRIMERO Y GIRE SOBRE SU EJE Y
+	//MATRIZ MODEL SEGUNDO CUBO
 	glm::vec3 rotAxis = glm::vec3(1.0f, 1.0f, 0.0f);
 	glm::vec3 orbit = glm::vec3(0.0f, 0.0f, 60.0f);
 
-	model[1] = glm::translate(model[0], orbit);							//ORBITAR (INDEPENDIENTEMENTE DE CAMBIOS SOBRE PRIMER CUBO)
-	model[1] = glm::rotate(model[1], angle, -rotAxis);								//DESHACER ROTACIÓN DEL PRIMER CUBO
-	model[1] = glm::rotate(model[1], 2 * angle, glm::vec3(0.0f, 1.0f, 0.0f));		//ROTAR SOBRE EJE Y
+	model[1] = glm::translate(model[0], orbit);							
+	model[1] = glm::rotate(model[1], angle, -rotAxis);								
+	model[1] = glm::rotate(model[1], 2 * angle, glm::vec3(0.0f, 1.0f, 0.0f));		
 	
 	model[2] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -12.0f, 1.5f));//para centrar este modelo en particular
 	

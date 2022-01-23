@@ -17,7 +17,7 @@ std::vector<int> assimpModelId;
 
 glm::mat4 view = glm::mat4(1.0);
 glm::mat4 proj = glm::mat4(1.0);
-glm::mat4 modelMat = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -40.0f, 0.0f));
+glm::mat4 modelMat = glm::mat4(1.0); 
 
 //Declaración de CB
 void resizeFunc(int width, int height);
@@ -53,7 +53,7 @@ int main(int argc, char** argv)
 	std::vector<float> cvpV;
 	for (size_t i = 0; i < cubeNVertex*3; i++)
 	{
-		cvpV.push_back(cubeVertexPos[i] * 20);
+		cvpV.push_back(cubeVertexPos[i] * 2);
 	}
 	float* cvp = cvpV.data();
 	//Creamos el objeto que vamos a visualizar
@@ -61,8 +61,6 @@ int main(int argc, char** argv)
 			cvp, cubeVertexColor, cubeVertexNormal, cubeVertexTexCoord, cubeVertexTangent);
 
 	//MODELO ASSIMP
-	//std::string modelPath = "../modelos/tallon.fbx";
-	//loadModel(modelPath);
 	std::string modelPath = "../modelos/SamusDread.fbx";
 	loadModel(modelPath);
 	for (size_t m = 0; m < assimpModelId.size(); m++)
@@ -329,9 +327,9 @@ void loadModel(std::string path) {
 		}
 		unsigned int* modelTriangleIndex = modelTriIndexVec.data();
 		float* modelVertexPos = modelVertexPosVec.data();
-		float* modelVertexNormal = modelVertexNormalVec.data();
 		float* modelVertexColor = modelVertexColorVec.data();
 		float* modelVertexTexCoord = modelVertexTexCoordVec.data();
+		float* modelVertexNormal = modelVertexNormalVec.data();
 		float* modelVertexTangent = modelVertexTangentVec.data();
 
 		assimpModelId.push_back(IGlib::createObj(modelNTriangleIndex, modelNVertex, modelTriangleIndex, modelVertexPos, modelVertexColor, modelVertexNormal, modelVertexTexCoord, modelVertexTangent));

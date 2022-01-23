@@ -15,8 +15,8 @@ in vec3 LightIntensity;
 //Propiedades de las funtes de luz
 //uniforms
 vec3 Ia = vec3(0.0);
-vec3 Il = LightIntensity;		//vec3(1000.0);
-vec3 Pl = LightPos;				//vec3(0,1.0,0);//Coord cámara
+vec3 Il = LightIntensity;		
+vec3 Pl = LightPos;				
 
 vec3 Ia2 = vec3(0.0);
 vec3 Il2 = vec3(1.0);
@@ -28,7 +28,7 @@ vec3 Ks;
 vec3 Ke;
 float n;
 vec3 N;
-vec3 Pp;// = glm::vec3(0.0, 1.0, 0.0);
+vec3 Pp;
 
 vec3 Ka2;
 vec3 Kd2;
@@ -39,7 +39,7 @@ vec3 N2;
 vec3 Pp2;
 
 //Fog
-vec3 fogColor = vec3(1.0);//vec3(0.5);
+vec3 fogColor = vec3(1.0);
 float fog = 0.0;
 float df = 0.005;
 int m = 5;
@@ -57,12 +57,10 @@ vec3 shade()
 
 	//Especular
 	vec3 V = normalize(-Pp);
-	//vec3 R = normalize(reflect(-L,N));
-	//c+= Il * Ks * pow (max(dot(V, R),0), n);
 	vec3 H = normalize(V+L);
 	c+= Il * Ks * pow (max(dot(H, N),0), n) * (pow(1/(length(Pp - Pl)+1), 2));
 
-	c+= Ke;// * (pow(1/(length(Pp - Pl)+1), 2));
+	c+= Ke;
 
 	vec3 c2 = vec3(0);
 
@@ -75,8 +73,6 @@ vec3 shade()
 
 	//Especular
 	vec3 V2 = normalize(-Pp2);
-	//vec3 R = normalize(reflect(-L,N));
-	//c+= Il * Ks * pow (max(dot(V, R),0), n);
 	vec3 H2 = normalize(V2+L2);
 	c2 += Il2 * Ks2 * pow (max(dot(H2, N),0), n2);
 
@@ -89,9 +85,6 @@ in vec3 vNormal;
 in vec3 vPos;
 in vec3 vColor;
 in vec2 vTexCoord;
-//in vec3 vTangent;
-//in vec3 vBitangent;
-//in mat3 TBN;
 
 void main()
 {
@@ -116,5 +109,4 @@ void main()
 	fog = exp(-pow((df * Pp.z), 2));
 	fog = clamp(fog, 0.0, 1.0);
 	outColor = fog * vec4(shade(), 1.0) + (1 - fog) * vec4(fogColor, 1.0);
-	//outColor = vec4(shade(), 1.0);   
 }
