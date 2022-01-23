@@ -21,16 +21,17 @@ out vec3 vNormal;
 out vec3 vPos;
 out vec3 vColor;
 out vec2 vTexCoord;
-out vec3 vTangent;
-out vec3 vBitangent;
 out mat3 TBN;
+
+vec3 vTangent;
+vec3 vBitangent;
 
 
 void main()
 {
 	vNormal = normalize(vec3(normal * vec4 (inNormal, 0)));
 	vTangent = normalize(vec3(normal * vec4(inTangent, 0.0)));
-	vBitangent = cross(vNormal, vTangent);//, vNormal);
+	vBitangent = cross(vNormal, vTangent);
 	TBN = mat3(vTangent, vBitangent, vNormal);	
 
 	vPos = vec3(modelView * vec4 (inPos, 1));

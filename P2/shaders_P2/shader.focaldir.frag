@@ -6,7 +6,7 @@ uniform sampler2D specularTex;
 uniform sampler2D emiTex;
 uniform sampler2D normalTex;
 in vec3 color;
-in vec3 LightPos;   // extra in variable, since we need the light position in view space we calculate this in the vertex shader
+in vec3 LightPos;   
 
 //Propiedades de las funtes de luz
 //uniforms
@@ -80,10 +80,6 @@ vec3 shade()
 		float t = clamp(pow((_LD-cos(cutoff)/(cos(angle)-cos(cutoff))), m), 0.0, 1.0);
 		fdir = smoothstep(1,0,t);
 	}
-	//else
-	//{
-		//fdir = 0.0;
-	//}
 	c2 += Il2 * Kd2 * max(dot(N2, L2), 0) * fdir * (pow(1/(length(Pp2 - Pl2) + 1), 2));
 
 	//Especular
@@ -102,8 +98,6 @@ in vec3 vNormal;
 in vec3 vPos;
 in vec3 vColor;
 in vec2 vTexCoord;
-in vec3 vTangent;
-in vec3 vBitangent;
 in mat3 TBN;
 
 void main()

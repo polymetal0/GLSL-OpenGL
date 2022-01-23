@@ -15,12 +15,6 @@
     <ClInclude Include="scr\PYR.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="scr\Mesh.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Model.h">
-      <Filter>src</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="scr\main.cpp">

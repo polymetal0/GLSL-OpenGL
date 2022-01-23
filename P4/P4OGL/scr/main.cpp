@@ -1,6 +1,7 @@
 ﻿#include "BOX.h"
 #include "auxiliar.h"
 #include "PLANE.h"
+#include "MASKS.h"
 
 #include <gl/glew.h>
 #define SOLVE_FGLUT_WARNING
@@ -12,6 +13,11 @@
 
 #include <iostream>
 #include <cstdlib>
+
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+#include <vector>
 
 #define RAND_SEED 31415926
 #define SCREEN_SIZE 500,500
@@ -25,7 +31,16 @@ glm::mat4	proj = glm::mat4(1.0f);
 glm::mat4	view = glm::mat4(1.0f);
 glm::mat4	model = glm::mat4(1.0f);
 
+glm::vec3 lightPos = glm::vec3(0.0, 6.0, 6.0);
+glm::vec3 lightInt = glm::vec3(1000.0, 1000.0, 1000.0);
+glm::vec4 motionBlur = glm::vec4(0.5, 0.5, 0.5, 0.5);
 
+float focalDistance = -25.0;
+float maxDistanceFactor = 0.2;
+
+float* mask = identity;
+
+//float maskFactor = 1.0f / 190.0f;
 //////////////////////////////////////////////////////////////
 // Variables que nos dan acceso a Objetos OpenGL
 //////////////////////////////////////////////////////////////
@@ -33,6 +48,9 @@ float angle = 0.0f;
 
 //VAO
 unsigned int vao;
+
+std::vector<unsigned int> modelNTriangleIndex;
+std::vector<unsigned int> modelVaos;
 
 //VBOs que forman parte del objeto
 unsigned int posVBO;
@@ -43,6 +61,8 @@ unsigned int triangleIndexVBO;
 
 unsigned int colorTexId;
 unsigned int emiTexId;
+unsigned int specTexId;
+unsigned int normalTexId;
 
 //
 unsigned int planeVAO;
@@ -57,10 +77,14 @@ unsigned int program;
 int uModelViewMat;
 int uModelViewProjMat;
 int uNormalMat;
+std::vector<int> uLightPos;
+std::vector<int> uLightInt;
 
 //Texturas Uniform
 int uColorTex;
 int uEmiTex;
+int uSpecTex;
+int uNormalTex;
 
 //Atributos
 int inPos;
@@ -82,6 +106,11 @@ unsigned int depthBuffTexId;
 unsigned int uZTexPP;
 unsigned int zBuffTexId;
 
+unsigned int uFocalDist;
+unsigned int uMaxDistFactor;
+
+unsigned int uConvMask;
+
 //////////////////////////////////////////////////////////////
 // Funciones auxiliares
 //////////////////////////////////////////////////////////////
@@ -92,20 +121,26 @@ void resizeFunc(int width, int height);
 void idleFunc();
 void keyboardFunc(unsigned char key, int x, int y);
 void mouseFunc(int button, int state, int x, int y);
+void mouseMotionFunc(int x, int y);
 
 void renderCube();
+void renderModel();
 
 //Funciones de inicialización y destrucción
 void initContext(int argc, char** argv);
 void initOGL();
 void initShaderFw(const char *vname, const char *fname);
 void initObj();
+
+void loadModel(std::string path);
+
 void destroy();
 
 
 //Carga el shader indicado, devuele el ID del shader
 //!Por implementar
 GLuint loadShader(const char *fileName, GLenum type);
+GLfloat maxAnisotropic;
 
 //Crea una textura, la configura, la sube a OpenGL, 
 //y devuelve el identificador de la textura 
@@ -133,8 +168,10 @@ int main(int argc, char** argv)
 	initContext(argc, argv);
 	initOGL();
 	initShaderFw("../shaders_P4/fwRendering.v0.vert", "../shaders_P4/fwRendering.v0.frag");
-	initObj();
-	
+	//initObj();
+	std::string modelPath = "../modelos/SamusDread.fbx";
+	loadModel(modelPath);
+
 	initShaderPP("../shaders_P4/postProcessing.v0.vert", "../shaders_P4/postProcessing.v1.frag");
 	initPlane();
 	initFBO();
@@ -173,11 +210,17 @@ void initContext(int argc, char** argv)
 	const GLubyte *oglVersion = glGetString(GL_VERSION);
 	std::cout << "This system supports OpenGL Version: " << oglVersion << std::endl;
 
+	if (glewIsSupported("GL_EXT_texture_filter_anisotropic"))
+	{
+		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnisotropic);
+	}
+
 	glutReshapeFunc(resizeFunc);
 	glutDisplayFunc(renderFunc);
 	glutIdleFunc(idleFunc);
 	glutKeyboardFunc(keyboardFunc);
 	glutMouseFunc(mouseFunc);
+	glutMotionFunc(mouseMotionFunc);
 }
 
 void initOGL()
@@ -256,6 +299,8 @@ void initShaderFw(const char *vname, const char *fname)
 
 	uColorTex = glGetUniformLocation(program, "colorTex");
 	uEmiTex = glGetUniformLocation(program, "emiTex");
+	uSpecTex = glGetUniformLocation(program, "specularTex");
+	uNormalTex = glGetUniformLocation(program, "normalTex");
 
 	inPos = glGetAttribLocation(program, "inPos");
 	inColor = glGetAttribLocation(program, "inColor");
@@ -319,6 +364,8 @@ void initObj()
 
 	colorTexId = loadTex("../img/color2.png");
 	emiTexId = loadTex("../img/emissive.png");
+	specTexId = loadTex("../img/specMap.png");
+	normalTexId = loadTex("../img/normal.png");
 }
 
 GLuint loadShader(const char *fileName, GLenum type)
@@ -383,6 +430,8 @@ unsigned int loadTex(const char *fileName)
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropic);
+
 	return texId;
 }
 
@@ -410,12 +459,26 @@ void renderFunc()
 		glBindTexture(GL_TEXTURE_2D, emiTexId);
 		glUniform1i(uEmiTex, 1);
 	}
-
+	if (uSpecTex != -1)
+	{
+		glActiveTexture(GL_TEXTURE0 + 2);
+		glBindTexture(GL_TEXTURE_2D, specTexId);
+		glUniform1i(uSpecTex, 2);
+	}
+	if (uNormalTex != -1)
+	{
+		glActiveTexture(GL_TEXTURE0 + 3);
+		glBindTexture(GL_TEXTURE_2D, normalTexId);
+		glUniform1i(uNormalTex, 3);
+	}
+	//model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -12.0f, 1.5f));
 
 	model = glm::mat4(2.0f);
 	model[3].w = 1.0f;
 	model = glm::rotate(model, angle, glm::vec3(1.0f, 1.0f, 0.0f));
-	renderCube();
+
+	//renderCube();
+	renderModel();
 
 	std::srand(RAND_SEED);
 	for (unsigned int i = 0; i < 10; i++)
@@ -433,11 +496,15 @@ void renderFunc()
 		transVec.y *= (std::rand() % 2) ? 1.0f : -1.0f;
 		transVec.z *= (std::rand() % 2) ? 1.0f : -1.0f;
 
+		//model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -12.0f, 1.5f));
+
 		model = glm::rotate(glm::mat4(1.0f), angle*2.0f*size, axis);
 		model = glm::translate(model, transVec);
 		model = glm::rotate(model, angle*2.0f*size, axis);
 		model = glm::scale(model, glm::vec3(1.0f / (size*0.7f)));
-		renderCube();
+
+		//renderCube();
+		renderModel();
 	}
 	//*/
 
@@ -447,12 +514,12 @@ void renderFunc()
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 
-	//glEnable(GL_BLEND);
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	//glBlendEquation(GL_FUNC_ADD);
 
+	glEnable(GL_BLEND);
 	glBlendFunc(GL_CONSTANT_COLOR, GL_CONSTANT_ALPHA);
-	glBlendColor(0.5f, 0.5f, 0.5f, 0.6f);
+	glBlendColor(motionBlur.r,motionBlur.g,motionBlur.b,motionBlur.a);
 	glBlendEquation(GL_FUNC_ADD);
 
 	
@@ -468,6 +535,21 @@ void renderFunc()
 		glActiveTexture(GL_TEXTURE0 + 1);
 		glBindTexture(GL_TEXTURE_2D, zBuffTexId);
 		glUniform1i(uZTexPP, 1);
+	}
+
+	if (uFocalDist != -1)
+	{
+		glUniform1f(uFocalDist, focalDistance);
+	}
+
+	if (uMaxDistFactor != -1)
+	{
+		glUniform1f(uMaxDistFactor, maxDistanceFactor);
+	}
+	
+	if (uConvMask != -1)
+	{
+		glUniform1fv(uConvMask, 9, &mask[0]);
 	}
 
 	glBindVertexArray(planeVAO);
@@ -503,12 +585,36 @@ void renderCube()
 		GL_UNSIGNED_INT, (void*)0);
 }
 
+void renderModel()
+{
+	glm::mat4 modelView = view * model;
+	glm::mat4 modelViewProj = proj * view * model;
+	glm::mat4 normal = glm::transpose(glm::inverse(modelView));
+
+	if (uModelViewMat != -1)
+		glUniformMatrix4fv(uModelViewMat, 1, GL_FALSE,
+		&(modelView[0][0]));
+	if (uModelViewProjMat != -1)
+		glUniformMatrix4fv(uModelViewProjMat, 1, GL_FALSE,
+		&(modelViewProj[0][0]));
+	if (uNormalMat != -1)
+		glUniformMatrix4fv(uNormalMat, 1, GL_FALSE,
+		&(normal[0][0]));
+	
+	for (size_t i = 0; i < modelVaos.size(); i++)
+	{
+		glBindVertexArray(modelVaos[i]);
+		glDrawElements(GL_TRIANGLES, modelNTriangleIndex[i] * 3,
+			GL_UNSIGNED_INT, (void*)0);
+	}
+}
+
 
 
 void resizeFunc(int width, int height)
 {
 	glViewport(0, 0, width, height);
-	proj = glm::perspective(glm::radians(60.0f), float(width) /float(height), 1.0f, 50.0f);
+	proj = glm::perspective(glm::radians(60.0f), float(width) /float(height), 1.0f, 5000.0f);
 
 	resizeFBO(width, height);
 
@@ -522,9 +628,267 @@ void idleFunc()
 	glutPostRedisplay();
 }
 
-void keyboardFunc(unsigned char key, int x, int y){}
-void mouseFunc(int button, int state, int x, int y){}
+glm::vec3 lookAt = glm::vec3(0.0f, 0.0f, -1.0f);
+glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+glm::vec3 cop = glm::vec3(0.0f, 0.0f, 25.0f);
 
+void keyboardFunc(unsigned char key, int x, int y)
+{
+	float cameraSpeed = 1.0;
+
+	float rotation = 0.0f;
+	std::cout << "Se ha pulsado la tecla " << key << std::endl << std::endl;
+
+	switch (key)
+	{
+		//MOVIMIENTO CÁMARA
+	case 'w':
+		cop += cameraSpeed * lookAt;
+		break;
+	case 'a':
+		cop -= glm::normalize(glm::cross(lookAt, up)) * cameraSpeed;
+		break;
+	case 's':
+		cop -= cameraSpeed * lookAt;
+		break;
+	case 'd':
+		cop += glm::normalize(glm::cross(lookAt, up)) * cameraSpeed;
+		break;
+		//ROTACIÓN CÁMARA
+	case 'q':
+		rotation = 15.0f;
+		break;
+	case 'e':
+		rotation = -15.0f;
+		break;
+		//POSICIÓN LUZ
+	case '0':
+		lightPos += glm::vec3(0.0, 1.0, 0.0);
+		break;
+	case '.':
+		lightPos -= glm::vec3(0.0, 1.0, 0.0);
+		break;
+	case '4':
+		lightPos -= glm::vec3(1.0, 0.0, 0.0);
+		break;
+	case '6':
+		lightPos += glm::vec3(1.0, 0.0, 0.0);
+		break;
+	case '8':
+		lightPos -= glm::vec3(0.0, 0.0, 1.0);
+		break;
+	case '2':
+		lightPos += glm::vec3(0.0, 0.0, 1.0);
+		break;
+	//INTENSIDAD LUZ
+	case '+':
+		//lightInt += glm::vec3(10.0, 10.0, 10.0);
+		//motionBlur += glm::vec4(0.1);
+		//maskFactor *= 1.1f;
+		break;
+	case '-':
+		//lightInt -= glm::vec3(10.0, 10.0, 10.0);
+		//motionBlur -= glm::vec4(0.1);
+		//maskFactor /= 1.1f;
+		break;
+	//MOTION BLUR
+	case 'f':
+		motionBlur.r += 0.1f;
+		break;
+	case 'g':
+		motionBlur.g += 0.1f;
+		break;
+	case 'h':
+		motionBlur.b += 0.1f;
+		break;
+	case 'j':
+		motionBlur.a += 0.1f;
+		break;
+
+	case 'c':
+		motionBlur.r -= 0.1f;
+		break;
+	case 'v':
+		motionBlur.g -= 0.1f;
+		break;
+	case 'b':
+		motionBlur.b -= 0.1f;
+		break;
+	case 'n':
+		motionBlur.a -= 0.1f;
+		break;
+	//DOF
+	case 'k':
+		focalDistance += 1.0f;
+		break;
+	case 'm':
+		focalDistance -= 1.0f;
+		break;
+
+	case 'l':
+		maxDistanceFactor += 0.1f;
+		break;
+	case ',':
+		maxDistanceFactor -= 0.1f;
+		break;
+	
+	case 'y':
+		mask = identity;
+		break;
+	case 'u':
+		mask = blur;
+		break;
+	case 'i':
+		mask = sharpen;
+		break;
+	case 'o':
+		mask = emboss;
+		break;
+	case 'p':
+		mask = outline;
+		break;		
+
+	default:
+		break;
+	}
+
+	glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians<float>(rotation), up);
+	lookAt = rot * glm::vec4(lookAt, 1.0f);
+
+	view = glm::lookAt(cop, cop + lookAt, up);
+	/*for (size_t i = 0; i < program.size(); i++)
+	{
+		if (uLightPos[i] != -1)
+		{
+			glUniform3f(uLightPos[i], lightPos[0], lightPos[1], lightPos[2]);
+		}
+		if (uLightInt[i] != -1)
+		{
+			glUniform3f(uLightInt[i], lightInt[0], lightInt[1], lightInt[2]);
+		}
+
+	}*/
+
+	if (uFocalDist != -1)
+	{
+		glUniform1f(uFocalDist, focalDistance);
+	}
+
+	if (uMaxDistFactor != -1)
+	{
+		glUniform1f(uMaxDistFactor, maxDistanceFactor);
+	}
+
+	//std::cout << focalDistance << std::endl;
+	//std::cout << maxDistanceFactor << std::endl;
+
+	//std::cout << motionBlur[0] << std::endl;
+	//std::cout << motionBlur[1] << std::endl;
+	//std::cout << motionBlur[2] << std::endl;
+	//std::cout << motionBlur[3] << std::endl;
+
+	glutPostRedisplay();
+}
+bool firstClick = true;
+
+void mouseFunc(int button, int state, int x, int y)
+{
+	if (state == 0)
+		std::cout << "Se ha pulsado el botón ";
+	else {
+		firstClick = true;
+		std::cout << "Se ha soltado el botón ";
+	}
+
+	if (button == 0) std::cout << "de la izquierda del ratón " << std::endl;
+	if (button == 1) std::cout << "central del ratón " << std::endl;
+	if (button == 2) std::cout << "de la derecha del ratón " << std::endl;
+
+	std::cout << "en la posición " << x << " " << y << std::endl << std::endl;
+}
+
+float lastX = 0.0f, lastY = 0.0f;
+float yaw = -90.0f;
+float pitch = 0.0f;
+
+void mouseMotionFunc(int x, int y)
+{
+	//CÁMARA ORBITAL
+
+	float camX = sin(x) * 16.0f;
+	float camZ = cos(x) * 16.0f;
+
+	view = glm::lookAt(cop, glm::vec3(0.0f, 0.0f, 0.0f) + lookAt, glm::vec3(0.0f, 1.0f, 0.0f));
+	float xoffset = x - lastX;
+	float yoffset = lastY - y;
+
+	if (firstClick)
+	{
+		xoffset = 0.0f;
+		yoffset = 0.0f;
+		firstClick = false;
+	}
+
+	lastX = x;
+	lastY = y;
+
+	float sensitivity = 0.01f;
+	xoffset *= sensitivity;
+	yoffset *= sensitivity;
+
+	yaw += xoffset;
+	pitch += yoffset;
+
+	if (pitch > 89.0f)
+		pitch = 89.0f;
+	if (pitch < -89.0f)
+		pitch = -89.0f;
+
+	glm::mat4 rotX = glm::rotate(glm::mat4(1.0f), pitch, glm::cross(lookAt, up));
+	glm::mat4 rotY = glm::rotate(glm::mat4(1.0f), yaw, up);
+
+	glm::mat4 rotMat = rotX * rotY;
+
+	view = glm::translate(glm::mat4(1.0f), -cop) * rotMat;
+
+	//FPS
+
+	/*float xoffset = x - lastX;
+	float yoffset = lastY - y;
+
+	if (firstClick)
+	{
+		xoffset = 0.0f;
+		yoffset = 0.0f;
+		firstClick = false;
+	}
+
+	lastX = x;
+	lastY = y;
+
+	float sensitivity = 0.1f;
+	xoffset *= sensitivity;
+	yoffset *= sensitivity;
+
+	yaw += xoffset;
+	pitch += yoffset;
+
+	if (pitch > 89.0f)
+		pitch = 89.0f;
+	if (pitch < -89.0f)
+		pitch = -89.0f;
+
+	glm::vec3 front;
+	front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+	front.y = sin(glm::radians(pitch));
+	front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+	lookAt = glm::normalize(front);
+
+	view = glm::lookAt(cop, cop + lookAt, up);
+	//*/
+
+	glutPostRedisplay;
+}
 void initPlane()
 {
 
@@ -567,6 +931,11 @@ void initShaderPP(const char* vname, const char* fname)
 
 	uColorTexPP = glGetUniformLocation(postProccesProgram, "colorTex");
 	uZTexPP = glGetUniformLocation(postProccesProgram, "zTex");
+
+	uFocalDist = glGetUniformLocation(postProccesProgram, "focalDist");
+	uMaxDistFactor = glGetUniformLocation(postProccesProgram, "distFactor");
+
+	uConvMask = glGetUniformLocation(postProccesProgram, "msk");
 
 	if (0 != glGetAttribLocation(postProccesProgram, "inPos"))
 		exit(-1);
@@ -626,4 +995,149 @@ void resizeFBO(unsigned int w, unsigned int h)
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
+}
+
+std::vector<int> assimpModelId;
+
+
+void loadModel(std::string path)
+{
+	Assimp::Importer importer;
+	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_PreTransformVertices | aiProcess_OptimizeMeshes | aiProcess_CalcTangentSpace);
+	float scale = 0.008;
+
+	//glUseProgram(program[program.size() - 1]);
+
+	for (size_t m = 0; m < scene->mNumMeshes; m++)
+	{
+		std::vector<unsigned int> modelTriIndexVec;
+		std::vector<float> modelVertexPosVec;
+
+		std::vector<float> modelVertexColorVec;
+		std::vector<float> modelVertexNormalVec;
+		std::vector<float> modelVertexTexCoordVec;
+		std::vector<float> modelVertexTangentVec;
+
+		aiMesh* mesh = scene->mMeshes[m];
+		modelNTriangleIndex.push_back(mesh->mNumFaces);
+		unsigned int modelNVertex = mesh->mNumVertices;
+
+		for (size_t i = 0; i < mesh->mNumFaces; i++)
+		{
+			for (size_t j = 0; j < mesh->mFaces->mNumIndices; j++)
+			{
+				modelTriIndexVec.push_back(mesh->mFaces[i].mIndices[j]);
+			}
+
+		}
+
+		for (size_t i = 0; i < mesh->mNumVertices; i++)
+		{
+			if (mesh->HasPositions())
+			{
+				modelVertexPosVec.push_back(mesh->mVertices[i].x * scale);
+				modelVertexPosVec.push_back(mesh->mVertices[i].y * scale);
+				modelVertexPosVec.push_back(mesh->mVertices[i].z * scale);
+			}
+			if (mesh->HasNormals())
+			{
+				modelVertexNormalVec.push_back(mesh->mNormals[i].x);
+				modelVertexNormalVec.push_back(mesh->mNormals[i].y);
+				modelVertexNormalVec.push_back(mesh->mNormals[i].z);
+			}
+			if (mesh->HasTextureCoords(0))
+			{
+				modelVertexTexCoordVec.push_back(mesh->mTextureCoords[0][i].x);
+				modelVertexTexCoordVec.push_back(mesh->mTextureCoords[0][i].y);
+			}
+			if (mesh->HasVertexColors(i))
+			{
+				modelVertexColorVec.push_back(mesh->mColors[i]->r);
+				modelVertexColorVec.push_back(mesh->mColors[i]->g);
+				modelVertexColorVec.push_back(mesh->mColors[i]->b);
+			}
+			if (mesh->HasTangentsAndBitangents())
+			{
+				modelVertexTangentVec.push_back(mesh->mTangents[i].x);
+				modelVertexTangentVec.push_back(mesh->mTangents[i].y);
+				modelVertexTangentVec.push_back(mesh->mTangents[i].z);
+
+			}
+
+		}
+		unsigned int* modelTriangleIndex = modelTriIndexVec.data();
+		float* modelVertexPos = modelVertexPosVec.data();
+		float* modelVertexNormal = modelVertexNormalVec.data();
+		float* modelVertexColor = modelVertexColorVec.data();
+		float* modelVertexTexCoord = modelVertexTexCoordVec.data();
+		float* modelVertexTangent = modelVertexTangentVec.data();
+
+		modelVaos.push_back(0);
+
+		glGenVertexArrays(1, &modelVaos[modelVaos.size() - 1]);
+		glBindVertexArray(modelVaos[modelVaos.size() - 1]);
+
+		if (inPos != -1)
+		{
+			glGenBuffers(1, &posVBO);
+			glBindBuffer(GL_ARRAY_BUFFER, posVBO);
+			glBufferData(GL_ARRAY_BUFFER, modelNVertex * sizeof(float) * 3,
+				modelVertexPos, GL_STATIC_DRAW);
+			glVertexAttribPointer(inPos, 3, GL_FLOAT, GL_FALSE, 0, 0);
+			glEnableVertexAttribArray(inPos);
+		}
+
+		if (inColor != -1)
+		{
+
+			glGenBuffers(1, &colorVBO);
+			glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
+			glBufferData(GL_ARRAY_BUFFER, modelNVertex * 3, //sizeof(float) *
+				modelVertexColor, GL_STATIC_DRAW);
+			glVertexAttribPointer(inColor, 3, GL_FLOAT, GL_FALSE, 0, 0);
+			glEnableVertexAttribArray(inColor);
+		}
+
+		if (inNormal != -1)
+		{
+
+			glGenBuffers(1, &normalVBO);
+			glBindBuffer(GL_ARRAY_BUFFER, normalVBO);
+			glBufferData(GL_ARRAY_BUFFER, modelNVertex * sizeof(float) * 3,
+				modelVertexNormal, GL_STATIC_DRAW);
+			glVertexAttribPointer(inNormal, 3, GL_FLOAT, GL_FALSE, 0, 0);
+			glEnableVertexAttribArray(inNormal);
+
+		}
+
+
+		if (inTexCoord != -1)
+		{
+			glGenBuffers(1, &texCoordVBO);
+			glBindBuffer(GL_ARRAY_BUFFER, texCoordVBO);
+			glBufferData(GL_ARRAY_BUFFER, modelNVertex * sizeof(float) * 2,
+				modelVertexTexCoord, GL_STATIC_DRAW); 
+			glVertexAttribPointer(inTexCoord, 2, GL_FLOAT, GL_FALSE, 0, 0);
+			glEnableVertexAttribArray(inTexCoord);
+		}
+
+		glGenBuffers(1, &triangleIndexVBO);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, triangleIndexVBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+			modelNTriangleIndex[modelNTriangleIndex.size() - 1] * sizeof(unsigned int) * 3,
+			modelTriangleIndex, GL_STATIC_DRAW);
+
+		model = glm::mat4(1.0f);
+
+		colorTexId = loadTex("../img/color2.png");
+		emiTexId = loadTex("../img/emissive.png");
+
+	}
+
+	colorTexId = loadTex("../img/Textures/samus_albedo.png");
+	specTexId = loadTex("../img/Textures/samus_PRM.png");
+	emiTexId = loadTex("../img/Textures/samus_E.png");
+	normalTexId = loadTex("../img/Textures/samus_nrm.png");
+
+	model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -12.0f, 1.5f));
 }

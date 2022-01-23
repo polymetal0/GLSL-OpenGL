@@ -56,7 +56,7 @@ int main(int argc, char** argv)
 
 	//MODELO ASSIMP
 	std::string modelPath = "../modelos/SamusDread.fbx";
-	//loadModel(modelPath);
+	loadModel(modelPath);
 
 
 	//Incluir texturas aquí.
@@ -107,16 +107,17 @@ void idleFunc()
 	angle = (angle < 2.0f * glm::pi<float>()) ? angle + 0.01f : 0.0f;
 
 	glm::vec3 rotAxis = glm::vec3(1.0f, 1.0f, 0.0f);
-	glm::vec3 orbit = glm::vec3(0.0f, 0.0f, 6.0f);
 
 	glm::mat4 model = glm::rotate(glm::mat4(1.0f), angle, rotAxis);
+	IGlib::setModelMat(objId, model);
 
-	//MATRIZ MODELO PARA QUE EL SEGUNDO CUBO ORBITE AL PRIMERO Y GIRE SOBRE SU EJE Y
-	glm::mat4 model2 = glm::translate(model, orbit);						//ORBITAR (INDEPENDIENTEMENTE DE CAMBIOS SOBRE PRIMER CUBO)
+	//SEGUNDO CUBO
+
+	glm::vec3 orbit = glm::vec3(0.0f, 0.0f, 6.0f);
+	glm::mat4 model2 = glm::translate(model, orbit);							//ORBITAR 
 	model2 = glm::rotate(model2, angle, -rotAxis);								//DESHACER ROTACIÓN DEL PRIMER CUBO
 	model2 = glm::rotate(model2, 2 * angle, glm::vec3(0.0f, 1.0f, 0.0f));		//ROTAR SOBRE EJE Y
 
-	IGlib::setModelMat(objId, model);
 	IGlib::setModelMat(objId2, model2);
 	for (size_t i = 0; i < assimpModelId.size(); i++)
 	{
@@ -139,6 +140,7 @@ void keyboardFunc(unsigned char key, int x, int y)
 
 	switch (key)
 	{
+	/*POSICIÓN CÁMARA*/
 	case 'w':
 		cop += cameraSpeed * lookAt;
 		break;
@@ -152,14 +154,13 @@ void keyboardFunc(unsigned char key, int x, int y)
 		cop += glm::normalize(glm::cross(lookAt, up)) * cameraSpeed;
 		break;
 
-	/*ROTACIÓN CÁMARA CON TECLADO*/
+	/*ROTACIÓN CÁMARA*/
 	case 'q':
 		rotation = 15.0f;
 		break;
 	case 'e':
 		rotation = -15.0f;
 		break;
-
 	default:
 		break;
 	}
@@ -192,7 +193,6 @@ void mouseFunc(int button, int state, int x, int y)
 	std::cout << "en la posición " << x << " " << y << std::endl << std::endl;
 }
 
-//glm::vec3 mousePosition = glm::vec3(0.0f);
 float lastX = 0.0f, lastY = 0.0f;
 float yaw = -90.0f;	
 float pitch = 0.0f;
@@ -201,11 +201,6 @@ void mouseMotionFunc(int x, int y)
 {
 	//CÁMARA ORBITAL
 	
-	/*
-	float camX = sin(x) * 16.0f;
-	float camZ = cos(x) * 16.0f;
-
-	view = glm::lookAt(cop, glm::vec3(0.0f, 0.0f, 0.0f) + lookAt, glm::vec3(0.0f, 1.0f, 0.0f));*/
 	float xoffset = x - lastX;
 	float yoffset = lastY - y;
 
@@ -226,19 +221,10 @@ void mouseMotionFunc(int x, int y)
 	yaw += xoffset;
 	pitch += yoffset;
 
-	if (pitch > 89.0f)
-		pitch = 89.0f;
-	if (pitch < -89.0f)
-		pitch = -89.0f;
+	pitch = glm::clamp(pitch, -89.9f, 89.9f);
 
 	glm::mat4 rotX = glm::rotate(glm::mat4(1.0f), pitch, glm::cross(lookAt, up));
 	glm::mat4 rotY = glm::rotate(glm::mat4(1.0f), yaw, up);
-
-
-	//lookAt = glm::normalize(rotationX * rotationY * glm::vec4(lookAt, 0));
-	//up = glm::normalize(rotationX * rotationY * glm::vec4(up, 0));
-	//right = glm::normalize(glm::cross(lookAt, up));
-	//view = glm::inverse(glm::mat4(glm::vec4(right, 0), glm::vec4(up, 0), glm::vec4(-lookAt, 0), glm::vec4(cop, 0)));
 
 	glm::mat4 rotMat = rotX * rotY;
 
@@ -249,7 +235,7 @@ void mouseMotionFunc(int x, int y)
 	/*//FPS
 
 	float xoffset = x - lastX;
-	float yoffset = lastY - y; // reversed since y-coordinates go from bottom to top
+	float yoffset = lastY - y; 
 	
 	if (firstClick)
 	{
@@ -261,18 +247,14 @@ void mouseMotionFunc(int x, int y)
 	lastX = x;
 	lastY = y;
 
-	float sensitivity = 0.1f; // change this value to your liking
+	float sensitivity = 0.1f; 
 	xoffset *= sensitivity;
 	yoffset *= sensitivity;
 
 	yaw += xoffset;
 	pitch += yoffset;
 
-	// make sure that when pitch is out of bounds, screen doesn't get flipped
-	if (pitch > 89.0f)
-		pitch = 89.0f;
-	if (pitch < -89.0f)
-		pitch = -89.0f;
+	pitch = glm::clamp(pitch, -89.9f, 89.9f);
 
 	glm::vec3 front;
 	front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
@@ -284,10 +266,6 @@ void mouseMotionFunc(int x, int y)
 	//*/
 
 	IGlib::setViewMat(view);
-	//IGlib::setProjMat(proj);
-
-	//mousePosition.x = x;
-	//mousePosition.y = y;
 	
 }
 

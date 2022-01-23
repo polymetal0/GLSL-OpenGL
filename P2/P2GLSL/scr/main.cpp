@@ -218,11 +218,7 @@ void mouseMotionFunc(int x, int y)
 
 	yaw += xoffset;
 	pitch += yoffset;
-
-	if (pitch > 89.0f)
-		pitch = 89.0f;
-	if (pitch < -89.0f)
-		pitch = -89.0f;
+	pitch = glm::clamp(pitch, -89.9f, 89.9f);
 
 	glm::mat4 rotX = glm::rotate(glm::mat4(1.0f), pitch, glm::cross(lookAt, up));
 	glm::mat4 rotY = glm::rotate(glm::mat4(1.0f), yaw, up);
@@ -254,10 +250,7 @@ void mouseMotionFunc(int x, int y)
 	yaw += xoffset;
 	pitch += yoffset;
 
-	if (pitch > 89.0f)
-		pitch = 89.0f;
-	if (pitch < -89.0f)
-		pitch = -89.0f;
+	pitch = glm::clamp(pitch, -89.9f, 89.9f);
 
 	glm::vec3 front;
 	front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));

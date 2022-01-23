@@ -9,6 +9,7 @@ uniform mat4 modelViewProj;
 uniform mat4 modelView;
 uniform mat4 normal;
 
+out vec3 vNormal;
 out vec3 color;
 out vec3 pos;
 out vec3 norm;
@@ -16,6 +17,8 @@ out vec2 texCoord;
 
 void main()
 {
+	vNormal = normalize(vec3(normal * vec4(inNormal, 0)));
+
 	color = inColor;
 	texCoord = inTexCoord;
 	norm = (normal * vec4(inNormal, 0.0)).xyz;

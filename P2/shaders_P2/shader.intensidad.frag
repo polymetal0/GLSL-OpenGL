@@ -50,8 +50,6 @@ in vec3 vNormal;
 in vec3 vPos;
 in vec3 vColor;
 in vec2 vTexCoord;
-in vec3 vTangent;
-in vec3 vBitangent;
 in mat3 TBN;
 
 void main()
@@ -64,7 +62,9 @@ void main()
 
 	N = texture(normalTex, vTexCoord).rgb;
 	N = N * 2.0 - 1.0;
-	N = normalize(TBN * N);		Pp = vPos;
+	N = normalize(TBN * N);		
+	
+	Pp = vPos;
 
 	outColor = vec4(shade(), 1.0);   
 }

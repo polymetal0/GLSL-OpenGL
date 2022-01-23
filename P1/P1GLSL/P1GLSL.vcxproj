@@ -19,9 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Model.h" />
     <ClInclude Include="scr\BOX.h" />
-    <ClInclude Include="scr\Mesh.h" />
     <ClInclude Include="scr\PYR.h" />
   </ItemGroup>
   <ItemGroup>

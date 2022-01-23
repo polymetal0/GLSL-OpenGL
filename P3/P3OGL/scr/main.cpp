@@ -28,8 +28,8 @@ std::vector<glm::mat4>	model;
 
 glm::mat4	model2 = glm::mat4(1.0f);
 
-glm::vec3 lightPos = glm::vec3(0.0, 6.0, 6.0);
-glm::vec3 lightInt = glm::vec3(1000.0, 1000.0, 1000.0);
+glm::vec3 lightPos = glm::vec3(0.0, 6.0, 16.0);
+glm::vec3 lightInt = glm::vec3(100.0);
 
 int w, h;
 
@@ -44,14 +44,11 @@ unsigned int vshader;
 unsigned int fshader;
 
 std::vector<unsigned int> program;
-unsigned int p1;
-unsigned int p2;
 
 //Variables Uniform
 std::vector<int> uModelViewMat;
 std::vector<int> uModelViewProjMat;
 std::vector<int> uNormalMat;
-std::vector<int> uViewMat;
 std::vector<int> uLightPos;
 std::vector<int> uLightInt;
 
@@ -97,7 +94,7 @@ std::vector<unsigned int> normalVBO;
 std::vector<unsigned int> texCoordVBO;
 std::vector<unsigned int> triangleIndexVBO;*/
 
-std::vector<unsigned int> modelNTriangleIndex;// = mesh->mNumFaces;
+std::vector<unsigned int> modelNTriangleIndex;
 
 //////////////////////////////////////////////////////////////
 // Funciones auxiliares
@@ -116,7 +113,6 @@ void loadModel(std::string path);
 //Funciones de inicialización y destrucción
 void initContext(int argc, char** argv);
 void initOGL();
-//void initShader(const std::vector<char*> vname, const std::vector<char*> fname);
 void initShader(const char* vname, const char* fname);
 void initObj();
 void destroy();
@@ -125,6 +121,7 @@ void destroy();
 //Carga el shader indicado, devuele el ID del shader
 //!Por implementar
 GLuint loadShader(const char* fileName, GLenum type);
+GLfloat maxAnisotropic;
 
 //Crea una textura, la configura, la sube a OpenGL, 
 //y devuelve el identificador de la textura 
@@ -138,20 +135,6 @@ int main(int argc, char** argv)
 
 	initContext(argc, argv);
 	initOGL();
-
-	//std::vector<char*> vname;
-	//std::vector<char*> fname;
-
-	//vname.push_back("../shaders_P3/shader.v1.vert");
-	//vname.push_back("../shaders_P3/shader.v0.vert");
-
-	//fname.push_back("../shaders_P3/shader.v1.frag");
-	//fname.push_back("../shaders_P3/shader.v0.frag");
-
-	//initShader(vname, fname);
-	//initObj();
-
-	
 
 	program.push_back(glCreateProgram());
 	//initShader("../shaders_P3/shader.v1.vert", "../shaders_P3/shader.v1.frag");
@@ -201,6 +184,11 @@ void initContext(int argc, char** argv)
 	const GLubyte* oglVersion = glGetString(GL_VERSION);
 	std::cout << "This system supports OpenGL Version: " << oglVersion << std::endl;
 
+	if (glewIsSupported("GL_EXT_texture_filter_anisotropic"))
+	{
+		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnisotropic);
+	}
+
 	glutReshapeFunc(resizeFunc);
 	glutDisplayFunc(renderFunc);
 	glutIdleFunc(idleFunc);
@@ -229,20 +217,26 @@ void destroy()
 	{
 		glDetachShader(program[i], vshader);
 		glDetachShader(program[i], fshader);
-		glDeleteShader(vshader);
-		glDeleteShader(fshader);
 		glDeleteProgram(program[i]);
-		glDeleteBuffers(1, &posVBO);
-		glDeleteBuffers(1, &colorVBO);
-		glDeleteBuffers(1, &normalVBO);
-		glDeleteBuffers(1, &texCoordVBO);
-		glDeleteBuffers(1, &triangleIndexVBO);
-		glDeleteVertexArrays(1, &vao[i]);
+	}
+
+	glDeleteShader(vshader);
+	glDeleteShader(fshader);
+	glDeleteBuffers(1, &posVBO);
+	glDeleteBuffers(1, &colorVBO);
+	glDeleteBuffers(1, &normalVBO);
+	glDeleteBuffers(1, &texCoordVBO);
+	glDeleteBuffers(1, &triangleIndexVBO);
+
+	for (size_t v = 0; v < vao.size(); v++)
+	{
+		glDeleteVertexArrays(1, &vao[v]);
 	}
 	for (size_t mv = 0; mv < modelVaos.size(); mv++)
 	{
 		glDeleteVertexArrays(1, &modelVaos[mv]);
 	}
+
 
 }
 
@@ -281,7 +275,6 @@ void initShader(const char* vname, const char* fname)
 		exit(-1);
 	}
 
-	uViewMat.push_back(glGetUniformLocation(program[program.size() - 1], "view"));
 	uNormalMat.push_back(glGetUniformLocation(program[program.size() - 1], "normal"));
 	uModelViewMat.push_back(glGetUniformLocation(program[program.size() - 1], "modelView"));
 	uModelViewProjMat.push_back(glGetUniformLocation(program[program.size() - 1], "modelViewProj"));
@@ -319,26 +312,12 @@ void initShader(const char* vname, const char* fname)
 		glUniform1i(uNormalTex[program.size() - 1], 3);
 	}
 
-	if (glewIsSupported("GL_EXT_texture_filter_anisotropic"))
-	{
-		GLfloat fLargest;
-		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &fLargest);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, fLargest);
-
-	}
-
-	//}
-
+	
 }
 
 
 void initObj()
 {
-	//posVBO = 0;// .resize(program.size());
-	//colorVBO = 0;//.resize(program.size());
-	//normalVBO = 0;//.resize(program.size());
-	//texCoordVBO = 0;//.resize(program.size());
-	//triangleIndexVBO = 0;//.resize(program.size());
 	vao.resize(program.size());
 
 	std::vector<float> cvpV;
@@ -347,8 +326,7 @@ void initObj()
 		cvpV.push_back(cubeVertexPos[i] * 20);
 	}
 	float* cvp = cvpV.data();
-	//for (size_t i = 0; i < program.size(); i++)
-	//{
+
 	glUseProgram(program[program.size() - 1]);
 
 	glGenBuffers(1, &posVBO);
@@ -404,7 +382,6 @@ void initObj()
 	normalTexId = loadTex("../img/normal.png");
 
 	model.push_back(glm::mat4(1.0f));
-	//}
 }
 
 GLuint loadShader(const char* fileName, GLenum type)
@@ -467,6 +444,8 @@ unsigned int loadTex(const char* fileName)
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropic);
+
 	return texId;
 }
 
@@ -491,17 +470,10 @@ void renderFunc()
 			glUniformMatrix4fv(uModelViewMat[i], 1, GL_FALSE,
 				&(modelView[0][0]));
 		}
-
 		if (uModelViewProjMat[i] != -1) {
 			glUniformMatrix4fv(uModelViewProjMat[i], 1, GL_FALSE,
 				&(modelViewProj[0][0]));
 		}
-		
-		if (uViewMat[i] != -1) {
-			glUniformMatrix4fv(uViewMat[i], 1, GL_FALSE,
-				&(view[0][0]));
-		}
-
 		if (uNormalMat[i] != -1) {
 			glUniformMatrix4fv(uNormalMat[i], 1, GL_FALSE,
 				&(normal[0][0]));
@@ -514,11 +486,10 @@ void renderFunc()
 		}
 		if (uLightInt[i] != -1)
 		{
-			glm::vec3 li = lightInt;// glm::vec3(modelViewProj * glm::vec4(lightInt, 1.0));
+			glm::vec3 li = lightInt;
 			glUniform3f(uLightInt[i], li[0], li[1], li[2]);
 			//glUniform3fv(uLightPos[i], 1, &lightPos[0]);
 		}
-
 
 		//Texturas
 		if (uColorTex[i] != -1)
@@ -635,28 +606,28 @@ void renderFunc()
 	glDrawElements(GL_TRIANGLES, cubeNTriangleIndex * 3,
 		GL_UNSIGNED_INT, (void*)0);*/
 
-		/**glViewport(w / 2, 0, w / 2, h);
-		//Subir uniforms
-		//Render calls
-		glm::mat4 v = view;
-		v[3].x += 0.1f;
-		modelView = v * model;
-		modelViewProj = proj * modelView;
-		normal = glm::transpose(glm::inverse(modelView));
+	/**glViewport(w / 2, 0, w / 2, h);
+	//Subir uniforms
+	//Render calls
+	glm::mat4 v = view;
+	v[3].x += 0.1f;
+	modelView = v * model;
+	modelViewProj = proj * modelView;
+	normal = glm::transpose(glm::inverse(modelView));
 
-		if (uModelViewMat != -1)
-			glUniformMatrix4fv(uModelViewMat, 1, GL_FALSE,
-				&(modelView[0][0]));
-		if (uModelViewProjMat != -1)
-			glUniformMatrix4fv(uModelViewProjMat, 1, GL_FALSE,
-				&(modelViewProj[0][0]));
-		if (uNormalMat != -1)
-			glUniformMatrix4fv(uNormalMat, 1, GL_FALSE,
-				&(normal[0][0]));
+	if (uModelViewMat != -1)
+		glUniformMatrix4fv(uModelViewMat, 1, GL_FALSE,
+			&(modelView[0][0]));
+	if (uModelViewProjMat != -1)
+		glUniformMatrix4fv(uModelViewProjMat, 1, GL_FALSE,
+			&(modelViewProj[0][0]));
+	if (uNormalMat != -1)
+		glUniformMatrix4fv(uNormalMat, 1, GL_FALSE,
+			&(normal[0][0]));
 
-		glBindVertexArray(vao);
-		glDrawElements(GL_TRIANGLES, cubeNTriangleIndex * 3,
-			GL_UNSIGNED_INT, (void*)0);/**/
+	glBindVertexArray(vao);
+	glDrawElements(GL_TRIANGLES, cubeNTriangleIndex * 3,
+		GL_UNSIGNED_INT, (void*)0);/**/
 
 	glutSwapBuffers();
 }
@@ -717,6 +688,7 @@ void keyboardFunc(unsigned char key, int x, int y)
 
 	switch (key)
 	{
+		//MOVIMIENTO CÁMARA
 	case 'w':
 		cop += cameraSpeed * lookAt;
 		break;
@@ -729,14 +701,14 @@ void keyboardFunc(unsigned char key, int x, int y)
 	case 'd':
 		cop += glm::normalize(glm::cross(lookAt, up)) * cameraSpeed;
 		break;
-
-		/*ROTACIÓN CÁMARA CON TECLADO*/
+		//ROTACIÓN CÁMARA
 	case 'q':
 		rotation = 15.0f;
 		break;
 	case 'e':
 		rotation = -15.0f;
 		break;
+		//POSICIÓN LUZ
 	case '0':
 		lightPos += glm::vec3(0.0, 1.0, 0.0);
 		break;
@@ -755,16 +727,13 @@ void keyboardFunc(unsigned char key, int x, int y)
 	case '2':
 		lightPos += glm::vec3(0.0, 0.0, 1.0);
 		break;
+		//INTENSIDAD LUZ
 	case '+':
-		lightInt += glm::vec3(10.0, 10.0, 10.0);
+		lightInt += glm::vec3(10.0);
 		break;
 	case '-':
-		lightInt -= glm::vec3(10.0, 10.0, 10.0);
+		lightInt -= glm::vec3(10.0);
 		break;
-		//model = model2;
-		//program = glCreateProgram();
-		//initShader("../shaders_P3/shader.v0.vert", "../shaders_P3/shader.v0.frag", 2);
-		//initObj();
 	default:
 		break;
 	}
@@ -777,11 +746,11 @@ void keyboardFunc(unsigned char key, int x, int y)
 	{
 		if (uLightPos[i] != -1)
 		{
-			glUniform3fv(uLightPos[i], 3, &lightPos[0]);// , lightPos[1], lightPos[2]);
+			glUniform3f(uLightPos[i], lightPos[0], lightPos[1], lightPos[2]);
 		}
 		if (uLightInt[i] != -1)
 		{
-			glUniform3fv(uLightInt[i], 3, &lightInt[0]);// , lightPos[1], lightPos[2]);
+			glUniform3f(uLightInt[i], lightInt[0], lightInt[1], lightInt[2]);
 		}
 
 	}
@@ -815,7 +784,6 @@ void mouseMotionFunc(int x, int y)
 {
 	//CÁMARA ORBITAL
 
-	
 	float camX = sin(x) * 16.0f;
 	float camZ = cos(x) * 16.0f;
 
@@ -840,29 +808,19 @@ void mouseMotionFunc(int x, int y)
 	yaw += xoffset;
 	pitch += yoffset;
 
-	if (pitch > 89.0f)
-		pitch = 89.0f;
-	if (pitch < -89.0f)
-		pitch = -89.0f;
+	pitch = glm::clamp(pitch, -89.9f, 89.9f);
 
 	glm::mat4 rotX = glm::rotate(glm::mat4(1.0f), pitch, glm::cross(lookAt, up));
 	glm::mat4 rotY = glm::rotate(glm::mat4(1.0f), yaw, up);
 
-	//lookAt = glm::normalize(rotationX * rotationY * glm::vec4(lookAt, 0));
-	//up = glm::normalize(rotationX * rotationY * glm::vec4(up, 0));
-	//right = glm::normalize(glm::cross(lookAt, up));
-	//view = glm::inverse(glm::mat4(glm::vec4(right, 0), glm::vec4(up, 0), glm::vec4(-lookAt, 0), glm::vec4(cop, 0)));
-
 	glm::mat4 rotMat = rotX * rotY;
 
 	view = glm::translate(glm::mat4(1.0f), -cop) * rotMat;
-	//cop.z = -view[3].z;*/
-	//
 
 	//FPS
 
 	/*float xoffset = x - lastX;
-	float yoffset = lastY - y; // reversed since y-coordinates go from bottom to top
+	float yoffset = lastY - y; 
 
 	if (firstClick)
 	{
@@ -874,18 +832,14 @@ void mouseMotionFunc(int x, int y)
 	lastX = x;
 	lastY = y;
 
-	float sensitivity = 0.1f; // change this value to your liking
+	float sensitivity = 0.1f; 
 	xoffset *= sensitivity;
 	yoffset *= sensitivity;
 
 	yaw += xoffset;
 	pitch += yoffset;
 
-	// make sure that when pitch is out of bounds, screen doesn't get flipped
-	if (pitch > 89.0f)
-		pitch = 89.0f;
-	if (pitch < -89.0f)
-		pitch = -89.0f;
+	pitch = glm::clamp(pitch, -89.9f, 89.9f);
 
 	glm::vec3 front;
 	front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
@@ -920,7 +874,6 @@ void loadModel(std::string path)
 		std::vector<float> modelVertexTangentVec;
 
 		aiMesh* mesh = scene->mMeshes[m];
-		//unsigned int 
 		modelNTriangleIndex.push_back(mesh->mNumFaces);
 		unsigned int modelNVertex = mesh->mNumVertices;
 
@@ -973,13 +926,8 @@ void loadModel(std::string path)
 		float* modelVertexColor = modelVertexColorVec.data();
 		float* modelVertexTexCoord = modelVertexTexCoordVec.data();
 		float* modelVertexTangent = modelVertexTangentVec.data();
-
-		//posVBO = 0;// .resize(program.size());
-		//colorVBO = 0;//.resize(program.size());
-		//normalVBO = 0;//.resize(program.size());
-		//texCoordVBO = 0;//.resize(program.size());
-		//triangleIndexVBO = 0;//.resize(program.size());
-		modelVaos.push_back(0);// resize(program.size());
+		
+		modelVaos.push_back(0);
 
 		glGenBuffers(1, &posVBO);
 		glGenBuffers(1, &colorVBO);
@@ -1003,7 +951,7 @@ void loadModel(std::string path)
 			glEnableVertexAttribArray(0);
 
 		glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
-		glBufferData(GL_ARRAY_BUFFER, modelNVertex * 3,//sizeof(float) * 3,
+		glBufferData(GL_ARRAY_BUFFER, modelNVertex * 3, //sizeof(float) *
 			modelVertexColor, GL_STATIC_DRAW);
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
 		if (inColor[program.size() - 1] != -1)
